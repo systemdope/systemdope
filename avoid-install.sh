@@ -1,36 +1,63 @@
 #!/usr/bin/env bash
 
+
 # Notes #######################################################################
+
+
 # Inspiration:
-# https://github.com/NicholasBHubbard/Void-Linux-Installer/blob/main/void-installer
+# https://github.com/NicholasBHubbard/Void-Linux-Installer
+# https://github.com/kkrruumm/void-install-script
 #
 # TODO accept a configuration file
 # TODO make a verbose/debug mode to handle non-error printf statements
 # TODO replace fzf with a simple bash menu system
 # TODO pass arguments for user-configurable variables
 
+
 # Global Variable Declarations ################################################
+
 
 # user-configurable
 TARGET_DISK=""  # the block device to which void will be installed
 TARGET_DEVICE=""  # /dev/${TARGER_DISK}
-HOSTNAME=""  # this is the name that will appear on the network
+TARGET_PARTITION_LABEL="dos"
+HOSTNAME="localhost"  # this is the name that will appear on the network
 EXTRA_PACKAGES="fzf git vim "  # this will be installed on your live system
 
-# non-user-configurable #######################################################
+# non-user-configurable
 BLOCK_DEVICES=""
 HOST_DISK=""  # the disk hosting the current operating system
 HOST_DEVICE=""  # /dev/${HOST_DISK}
 HOST_PARTITION=""  # the partition of the currently operating system
 
+# sfdisk stuff
+SFDISK_SUPPORTED_LABELS=(linux swap)
+
+
 # Error handling and Debugging ################################################
 
-exec 3>&2  # open file descriptor 3 and redirect it to stderr
-#exec 3>/dev/null  # open file descriptor 3 and redirect it to /dev/null
+
+# TODO make this a function, so it can be run after argument processing
+
+DEBUG="1"  # leave empty or set to zero (0) to disable debugging
+
+if [[ -z ${DEBUG} || "${DEBUG}" == "0" ]]; then
+	exec 3>/dev/null
+else
+	exec 3>&2  # open file descriptor 3 and redirect it to stderr
+	printf "PASS: DEBUG is set\n"
+fi
+
 
 # Function Definitions ########################################################
 
-is_valid_hostname() {
+
+function cleanup {
+	exec 3>&-  # close file descriptor 3; used for debugging
+	return 0
+}
+
+function is_valid_hostname {
 	# FIXME the validity check is not correct. Just a basic sanity check.
 	local hostname=$1
 	# Max length is 253 characters, each label max 63 chars
@@ -43,8 +70,10 @@ is_valid_hostname() {
 	fi
 }
 
+
 # System Verification #########################################################
-#
+
+
 # TODO verify we are in a live environment
 # TODO check for dependencies: fzf, fdisk
 # TODO verify we are on a void linus system
@@ -60,7 +89,9 @@ else
 	printf "PASS: user is root.\n" >&3
 fi
 
+
 # Main Logic ##################################################################
+
 
 # get the directory in which this script is stored, regardless of execution dir
 # TODO find a use case for this for remove
@@ -130,23 +161,24 @@ fi
 # HERE HOSTNAME is a valid hostname
 
 # Partition and format the disk
-
 # TODO make this banner conditional via rgument -q,--quiet
 # https://patorjk.com/software/taag/#p=display&f=ANSI+Shadow&t=WARNING!
-printf "                                                               \n"
-printf "  ██╗    ██╗ █████╗ ██████╗ ███╗   ██╗██╗███╗   ██╗ ██████╗ ██╗\n"
-printf "  ██║    ██║██╔══██╗██╔══██╗████╗  ██║██║████╗  ██║██╔════╝ ██║\n"
-printf "  ██║ █╗ ██║███████║██████╔╝██╔██╗ ██║██║██╔██╗ ██║██║  ███╗██║\n"
-printf "  ██║███╗██║██╔══██║██╔══██╗██║╚██╗██║██║██║╚██╗██║██║   ██║╚═╝\n"
-printf "  ╚███╔███╔╝██║  ██║██║  ██║██║ ╚████║██║██║ ╚████║╚██████╔╝██╗\n"
-printf "   ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝\n"
-printf "                                                               \n"
+printf "                                                                    \n"
+printf "       ██╗    ██╗ █████╗ ██████╗ ███╗   ██╗██╗███╗   ██╗ ██████╗ ██╗\n"
+printf "       ██║    ██║██╔══██╗██╔══██╗████╗  ██║██║████╗  ██║██╔════╝ ██║\n"
+printf "       ██║ █╗ ██║███████║██████╔╝██╔██╗ ██║██║██╔██╗ ██║██║  ███╗██║\n"
+printf "       ██║███╗██║██╔══██║██╔══██╗██║╚██╗██║██║██║╚██╗██║██║   ██║╚═╝\n"
+printf "       ╚███╔███╔╝██║  ██║██║  ██║██║ ╚████║██║██║ ╚████║╚██████╔╝██╗\n"
+printf "        ╚══╝╚══╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝\n"
+printf "                                                                    \n"
 
 # TODO display the disk partition and formatting information
 # confirm the user would like to proceed with a destructive act
+# TODO verify all required values exist and are valid (e.g. HOSTNAME)
 printf "hostname: ${HOSTNAME}\n"
 printf "host device: ${HOST_DEVICE}\n"
 printf "target device: ${TARGET_DEVICE}\n"
+printf "partition label: ${TARGET_PARTITION_LABEL}\n"
 printf "\n"
 printf "WARNING: This will create a partition table based on my usb drive.\n"
 printf "WARNING: This will erase device ${TARGET_DEVICE}. Proceed? (yes/NO)\n"
@@ -156,23 +188,30 @@ if [[ "$response" != "yes" ]]; then
 	exit 1
 fi
 exit 0  # XXX do NOT use this script!!! It is a work in progress.
-# partition TARGET_DEVICE
-# NOTE this is just a copy of sfdisk -d on my usb thumb driver
-sudo sfdisk "${TARGET_DEVICE}" <<EOF
-label: dos
-label-id: 0xac6f3357
-device: /dev/sda
-unit: sectors
-sector-size: 512
 
-/dev/sda1 : start=        2048, size=    30275584, type=c
+# partition TARGET_DEVICE
+sudo sfdisk "${TARGET_DEVICE}" << EOF
+size=1GiB, type=83
+size=2GiB, type=83
+;
 EOF
+
+if [[ "$?" == "0" ]]; then
+	sudo mkfs.vfat -F 32 "${TARGET_DEVICE}1"
+else
+	printf "ERROR: sfdisk experienced an error\n" >&3
+fi
 
 # WE ARE AT THE END NOW
 printf "\nConfiguration\n"
 printf "    target disk:  %s\n" "/dev/${TARGET_DISK}"
 printf "    hostname:  %s\n" "${HOSTNAME}"
 
-exec 3>&-  # close file descriptor 3
+
+cleanup
+
+
+
+
 
 exit 0
