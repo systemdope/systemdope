@@ -200,9 +200,21 @@ EOF
 # make first partition vfat for /boot/efi
 if [[ "$?" == "0" ]]; then
 	sudo mkfs.vfat -F 32 "${TARGET_DEVICE}1"
+	mkfs.vfat "${TARGET_DEVICE}1"  # /dev/sda1
+	mkfs.ext4 "${TARGET_DEVICE}2"  # /dev/sda2
 else
 	printf "ERROR: sfdisk experienced an error\n" >&3
 fi
+
+#mount /dev/sda2 /mnt/
+mount "${TARGET_DEVICE}2" /mnt/
+mkdir -p /mnt/boot/efi/
+#mount /dev/sda1 /mnt/boot/efi/
+mount "${TARGET_DEVICE}1" /mnt/boot/efi/
+
+xgenfstab -U /mnt > /mnt/etc/fstab
+printf "Entering chroot...\n"
+xchroot /mnt /bin/bash
 
 # WE ARE AT THE END NOW
 printf "\nConfiguration\n"
