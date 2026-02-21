@@ -191,11 +191,13 @@ exit 0  # XXX do NOT use this script!!! It is a work in progress.
 
 # partition TARGET_DEVICE
 sudo sfdisk "${TARGET_DEVICE}" << EOF
-size=1GiB, type=83
-size=2GiB, type=83
+label: gpt
+size=1G, type=U # EFI partition (U for EFI System)
+size=+, type=L    # Linux partition (L for Linux filesystem)
 ;
 EOF
 
+# make first partition vfat for /boot/efi
 if [[ "$?" == "0" ]]; then
 	sudo mkfs.vfat -F 32 "${TARGET_DEVICE}1"
 else
