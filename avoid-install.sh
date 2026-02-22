@@ -190,7 +190,7 @@ fi
 exit 0  # XXX do NOT use this script!!! It is a work in progress.
 
 # partition TARGET_DEVICE
-sudo sfdisk "${TARGET_DEVICE}" << EOF
+sudo wipefs --all "${TARGET_DEVICE}" ; sudo sfdisk -W always "${TARGET_DEVICE}" << EOF
 label: gpt
 size=1GiB, type=U, name="EFI System"
 size=+, type=L, name="Main Linux Filesystem"
