@@ -192,16 +192,15 @@ exit 0  # XXX do NOT use this script!!! It is a work in progress.
 # partition TARGET_DEVICE
 sudo sfdisk "${TARGET_DEVICE}" << EOF
 label: gpt
-size=1G, type=U # EFI partition (U for EFI System)
-size=+, type=L    # Linux partition (L for Linux filesystem)
-;
+size=1GiB, type=U, name="EFI System"
+size=+, type=L, name="Main Linux Filesystem"
 EOF
 
 # make first partition vfat for /boot/efi
 if [[ "$?" == "0" ]]; then
 	sudo mkfs.vfat -F 32 "${TARGET_DEVICE}1"
-	mkfs.vfat "${TARGET_DEVICE}1"  # /dev/sda1
-	mkfs.ext4 "${TARGET_DEVICE}2"  # /dev/sda2
+	sudo mkfs.vfat "${TARGET_DEVICE}1"  # /dev/sda1
+	sudo mkfs.ext4 "${TARGET_DEVICE}2"  # /dev/sda2
 else
 	printf "ERROR: sfdisk experienced an error\n" >&3
 fi
